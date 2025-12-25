@@ -1,0 +1,29 @@
+⚡ CLICK ИСПРАВЛЕН! ⚡
+===================
+
+Проблема: "Order not found"
+Статус: ✅ ИСПРАВЛЕНО
+
+Что исправлено:
+--------------
+✅ Backend автоматически создаёт заказ если Click пришёл раньше
+✅ Устойчивость к race condition
+✅ Коррекция payment_type если нужно
+
+Как проверить:
+-------------
+1. cd photobooth-magic-main/backend
+2. python test_click_without_qr.py
+3. Должно быть: ✅ ТЕСТ ЗАВЕРШЁН
+
+Запуск:
+-------
+python app.py
+
+Логи теперь:
+-----------
+DEBUG: Order not found, creating new: photobooth-XXX
+DEBUG: Created new payment in prepare: payment_id=X
+✅ Click prepare success
+
+Подробности: CLICK_FIX_COMPLETE.md

@@ -1,0 +1,156 @@
+⚠️ CLICK НЕ ПРОХОДИТ - РЕШЕНИЕ
+═══════════════════════════════════════════════════════════
+
+🔍 ПРОБЛЕМА:
+
+QR код генерируется ✅
+URL правильный ✅
+Prepare работает ✅
+НО оплата не завершается ❌
+
+───────────────────────────────────────────────────────────
+
+❓ ПОЧЕМУ ТАК?
+
+Click работает через webhook. Когда пользователь оплачивает:
+
+1. ✅ Click вызывает /api/click/prepare (создаёт платёж)
+2. ⏳ Пользователь оплачивает в приложении Click
+3. ❌ Click пытается вызвать /api/click/complete
+   НО НЕ МОЖЕТ, потому что:
+   - Ваш сервер на localhost (не доступен из интернета)
+   - Webhook URL не настроен в Click кабинете
+
+───────────────────────────────────────────────────────────
+
+✅ РЕШЕНИЕ 1: ДЛЯ РАЗРАБОТКИ (Тестовая оплата)
+
+Используйте тестовый endpoint для симуляции:
+
+curl -X POST http://localhost:5000/api/test-payment/ORDER_ID
+
+Пример:
+curl -X POST http://localhost:5000/api/test-payment/photobooth-1766471584376
+
+Это сразу переведёт платёж в статус "success"!
+
+───────────────────────────────────────────────────────────
+
+✅ РЕШЕНИЕ 2: ДЛЯ PRODUCTION (Реальная оплата)
+
+Нужно настроить Click webhook в личном кабинете:
+
+1. Войдите в Click кабинет мерчанта
+2. Найдите настройки Service ID: 38261
+3. Укажите Callback URL:
+   
+   Prepare:  https://fbox.polito.uz/api/click/prepare
+   Complete: https://fbox.polito.uz/api/click/complete
+
+4. Сохраните
+
+⚠️ ВАЖНО: Ваш сервер должен быть доступен по https!
+
+───────────────────────────────────────────────────────────
+
+✅ РЕШЕНИЕ 3: Через ngrok (для тестирования)
+
+1. Установите ngrok: https://ngrok.com/download
+
+2. Запустите туннель:
+   ngrok http 5000
+
+3. Скопируйте URL (например: https://abc123.ngrok.io)
+
+4. В Click кабинете укажите:
+   Prepare:  https://abc123.ngrok.io/api/click/prepare
+   Complete: https://abc123.ngrok.io/api/click/complete
+
+5. Протестируйте оплату!
+
+───────────────────────────────────────────────────────────
+
+🧪 БЫСТРЫЙ ТЕСТ (БЕЗ Click):
+
+PowerShell:
+Invoke-RestMethod -Uri "http://localhost:5000/api/test-payment/photobooth-1766471584376" -Method POST
+
+Bash:
+curl -X POST http://localhost:5000/api/test-payment/photobooth-1766471584376
+
+Ожидаемо:
+{
+  "status": "ok",
+  "message": "Payment simulated successfully",
+  "payment": {
+    "status": "success",
+    "order_id": "photobooth-1766471584376"
+  }
+}
+
+───────────────────────────────────────────────────────────
+
+📋 ЧЕКЛИСТ НАСТРОЙКИ PRODUCTION:
+
+Для работы Click в production нужно:
+
+□ Сервер доступен из интернета (не localhost)
+□ Работает по HTTPS (обязательно!)
+□ Webhook URL настроены в Click кабинете
+□ Merchant ID и Service ID правильные
+□ Firewall разрешает входящие от Click IP
+
+───────────────────────────────────────────────────────────
+
+💡 ВАЖНО:
+
+В разработке (localhost):
+  ✅ Используйте /api/test-payment/ORDER_ID
+  ❌ Click webhook не работает (нет доступа)
+
+В production (сервер в интернете):
+  ✅ Click webhook работает
+  ❌ НЕ используйте test-payment
+
+───────────────────────────────────────────────────────────
+
+🔍 КАК ПРОВЕРИТЬ ЧТО WEBHOOK НАСТРОЕН:
+
+1. Создайте тестовый платёж в приложении
+2. Оплатите через Click
+3. Смотрите логи backend:
+
+   Должно появиться:
+   DEBUG: click_prepare data=...
+   DEBUG: click_complete data=...  <-- Это webhook от Click!
+   DEBUG: Payment success for order_id=...
+
+   Если НЕТ click_complete - webhook не работает!
+
+───────────────────────────────────────────────────────────
+
+📊 ВАШИ ДАННЫЕ:
+
+CLICK_MERCHANT_ID = '29137'
+CLICK_SERVICE_ID = '38261'
+
+URL генерируется:
+https://my.click.uz/services/pay?service_id=38261&merchant_id=29137&amount=1000.00&transaction_param=ORDER_ID
+
+✅ Всё правильно!
+
+───────────────────────────────────────────────────────────
+
+⚡ БЫСТРОЕ РЕШЕНИЕ СЕЙЧАС:
+
+Просто используйте тестовую оплату:
+
+1. Создайте order в приложении (получите ORDER_ID)
+2. Выполните:
+   curl -X POST http://localhost:5000/api/test-payment/ORDER_ID
+3. ✅ Платёж станет "success"
+4. Приложение отреагирует!
+
+───────────────────────────────────────────────────────────
+
+Дата: 23.12.2025, 06:40 UTC

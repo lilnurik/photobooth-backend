@@ -1,0 +1,82 @@
+⚡ CLICK ИСПРАВЛЕН!
+═══════════════════════════════════════════════════════════
+
+✅ ЧТО ИСПРАВИЛИ:
+
+1. /api/click/prepare:
+   ✅ Проверка service_id
+   ✅ Проверка формата order_id (photobooth-*)
+   ✅ Проверка дубликатов по transaction_id
+   ✅ Обработка ошибок БД
+   ✅ Детальное логирование
+
+2. /api/click/complete:
+   ✅ Проверка service_id
+   ✅ Проверка суммы
+   ✅ Обработка ошибок от Click
+   ✅ Поиск по id + transaction_id
+   ✅ Установка state (1, 2, -1, -2)
+
+───────────────────────────────────────────────────────────
+
+🚀 ПЕРЕЗАПУСК:
+
+1. Остановите: Ctrl+C
+
+2. Запустите:
+   python app.py
+
+3. Проверьте:
+   ✅ Flask API запущен
+   ✅ Telegram Bot запущен
+
+───────────────────────────────────────────────────────────
+
+🧪 БЫСТРЫЙ ТЕСТ:
+
+curl -X POST http://localhost:5000/api/click/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "click_trans_id": "test123",
+    "service_id": "75063",
+    "merchant_trans_id": "photobooth-1703334000000",
+    "amount": "10000"
+  }'
+
+Ожидаемо:
+{
+  "error": 0,
+  "error_note": "Success",
+  "merchant_prepare_id": 1
+}
+
+───────────────────────────────────────────────────────────
+
+📋 КОДЫ ОШИБОК:
+
+  0 = Success
+ -2 = Incorrect amount
+ -3 = Invalid action
+ -5 = Order not found / Invalid service_id
+ -6 = Transaction not found
+ -8 = Missing parameters
+ -9 = Database error
+
+───────────────────────────────────────────────────────────
+
+⚙️ ПРОВЕРЬТЕ НАСТРОЙКИ:
+
+Файл: app.py (строка 26-27)
+
+CLICK_MERCHANT_ID = '29137'
+CLICK_SERVICE_ID = '75063'
+
+Если ваши данные другие - измените!
+
+───────────────────────────────────────────────────────────
+
+📚 ПОДРОБНОСТИ: ИСПРАВЛЕНИЕ_CLICK.md
+
+───────────────────────────────────────────────────────────
+
+Дата: 23.12.2025, 06:30 UTC
