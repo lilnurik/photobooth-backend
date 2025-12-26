@@ -192,7 +192,25 @@ def payme_webhook():
         amount = params.get('amount')
         
         print(f"DEBUG: CheckPerformTransaction order_id={order_id}, amount={amount}", flush=True)
-        return jsonify({"result": {"allow": True}})
+        
+        # Проверяем существует ли заказ
+        payment = Payment.query.filter_by(order_id=order_id).first()
+        
+        if not payment:
+            return jsonify({
+                "id": id,
+                "error": {"code": -31050, "message": "Order not found"}
+            })
+        
+        # Проверяем корректность суммы (amount в тийинах, у нас в сумах)
+        expected_amount = payment.amount * 100
+        if amount != expected_amount:
+            return jsonify({
+                "id": id,
+                "error": {"code": -31001, "message": f"Incorrect amount. Expected {expected_amount}, got {amount}"}
+            })
+        
+        return jsonify({"id": id, "result": {"allow": True}})
         
     elif method == 'CreateTransaction':
         transaction_id = params.get('id')
@@ -202,25 +220,40 @@ def payme_webhook():
         
         print(f"DEBUG: CreateTransaction order_id={order_id}, transaction_id={transaction_id}", flush=True)
         
-        # Проверяем существует ли уже платёж
-        payment = Payment.query.filter_by(transaction_id=transaction_id).first()
+        # Ищем существующий платёж по order_id (он уже был создан в /generate-qr)
+        payment = Payment.query.filter_by(order_id=order_id).first()
         
         if not payment:
-            # Создаём новый платёж
-            payment = Payment(
-                order_id=order_id,
-                transaction_id=transaction_id,
-                amount=amount // 100,  # конвертируем тийины в сумы
-                payment_type='payme',
-                status='pending',
-                state=1,
-                create_time=datetime.utcnow()
-            )
-            db.session.add(payment)
-            db.session.commit()
-            print(f"DEBUG: Created new payment: {payment}", flush=True)
+            return jsonify({
+                "id": id,
+                "error": {"code": -31050, "message": "Order not found"}
+            })
+        
+        # Проверяем, не был ли уже привязан другой transaction_id
+        if payment.transaction_id and payment.transaction_id != transaction_id:
+            # Транзакция уже существует с другим ID
+            existing = Payment.query.filter_by(transaction_id=transaction_id).first()
+            if existing:
+                return jsonify({
+                    "id": id,
+                    "result": {
+                        "create_time": int(existing.create_time.timestamp() * 1000),
+                        "transaction": str(existing.id),
+                        "state": existing.state
+                    }
+                })
+        
+        # ОБНОВЛЯЕМ существующую запись (не создаём новую!)
+        payment.transaction_id = transaction_id
+        payment.state = 1  # created
+        if not payment.create_time:
+            payment.create_time = datetime.utcnow()
+        
+        db.session.commit()
+        print(f"DEBUG: Updated payment with transaction_id: {transaction_id}", flush=True)
         
         return jsonify({
+            "id": id,
             "result": {
                 "create_time": int(payment.create_time.timestamp() * 1000),
                 "transaction": str(payment.id),
