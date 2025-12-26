@@ -1,0 +1,60 @@
+    elif method == 'CreateTransaction':
+        transaction_id = params.get('id')
+        amount = params.get('amount')
+        account = params.get('account', {})
+        order_id = account.get('order_id')
+        
+        print(f"DEBUG: CreateTransaction order_id={order_id}, transaction_id={transaction_id}", flush=True)
+        
+        try:
+            # ✅ ПРОВЕРКА 1: Может транзакция уже была создана ранее (повторный запрос)
+            existing_transaction = Payment.query.filter_by(transaction_id=transaction_id).first()
+            if existing_transaction:
+                print(f"DEBUG: Transaction already exists: {transaction_id}, returning existing", flush=True)
+                return jsonify({
+                    "id": id,
+                    "result": {
+                        "create_time": int(existing_transaction.create_time.timestamp() * 1000),
+                        "transaction": str(existing_transaction.id),
+                        "state": existing_transaction.state
+                    }
+                })
+            
+            # ✅ ПРОВЕРКА 2: Ищем платёж по order_id (он был создан в /generate-qr)
+            payment = Payment.query.filter_by(order_id=order_id).first()
+            
+            if not payment:
+                print(f"ERROR: Order not found: {order_id}", flush=True)
+                return jsonify({
+                    "id": id,
+                    "error": {"code": -31050, "message": f"Order not found: {order_id}"}
+                })
+            
+            # ✅ ОБНОВЛЕНИЕ: Привязываем transaction_id к существующему платежу
+            print(f"DEBUG: Updating payment: order_id={order_id} with transaction_id={transaction_id}", flush=True)
+            
+            payment.transaction_id = transaction_id
+            payment.state = 1  # created
+            if not payment.create_time:
+                payment.create_time = datetime.utcnow()
+            
+            db.session.commit()
+            
+            print(f"DEBUG: ✅ Payment updated successfully: order_id={order_id}, transaction_id={transaction_id}", flush=True)
+            
+            return jsonify({
+                "id": id,
+                "result": {
+                    "create_time": int(payment.create_time.timestamp() * 1000),
+                    "transaction": str(payment.id),
+                    "state": 1
+                }
+            })
+            
+        except Exception as e:
+            print(f"ERROR in CreateTransaction: {e}", flush=True)
+            db.session.rollback()
+            return jsonify({
+                "id": id,
+                "error": {"code": -32400, "message": f"Internal error: {str(e)}"}
+            })
