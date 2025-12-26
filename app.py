@@ -220,46 +220,58 @@ def payme_webhook():
         
         print(f"DEBUG: CreateTransaction order_id={order_id}, transaction_id={transaction_id}", flush=True)
         
-        # Ищем существующий платёж по order_id (он уже был создан в /generate-qr)
-        payment = Payment.query.filter_by(order_id=order_id).first()
-        
-        if not payment:
-            return jsonify({
-                "id": id,
-                "error": {"code": -31050, "message": "Order not found"}
-            })
-        
-        # Проверяем, не был ли уже привязан другой transaction_id
-        if payment.transaction_id and payment.transaction_id != transaction_id:
-            # Транзакция уже существует с другим ID
-            existing = Payment.query.filter_by(transaction_id=transaction_id).first()
-            if existing:
+        try:
+            # ✅ ПРОВЕРКА 1: Может транзакция уже была создана ранее (повторный запрос)
+            existing_transaction = Payment.query.filter_by(transaction_id=transaction_id).first()
+            if existing_transaction:
+                print(f"DEBUG: Transaction already exists: {transaction_id}, returning existing", flush=True)
                 return jsonify({
                     "id": id,
                     "result": {
-                        "create_time": int(existing.create_time.timestamp() * 1000),
-                        "transaction": str(existing.id),
-                        "state": existing.state
+                        "create_time": int(existing_transaction.create_time.timestamp() * 1000),
+                        "transaction": str(existing_transaction.id),
+                        "state": existing_transaction.state
                     }
                 })
-        
-        # ОБНОВЛЯЕМ существующую запись (не создаём новую!)
-        payment.transaction_id = transaction_id
-        payment.state = 1  # created
-        if not payment.create_time:
-            payment.create_time = datetime.utcnow()
-        
-        db.session.commit()
-        print(f"DEBUG: Updated payment with transaction_id: {transaction_id}", flush=True)
-        
-        return jsonify({
-            "id": id,
-            "result": {
-                "create_time": int(payment.create_time.timestamp() * 1000),
-                "transaction": str(payment.id),
-                "state": 1
-            }
-        })
+            
+            # ✅ ПРОВЕРКА 2: Ищем платёж по order_id (он был создан в /generate-qr)
+            payment = Payment.query.filter_by(order_id=order_id).first()
+            
+            if not payment:
+                print(f"ERROR: Order not found: {order_id}", flush=True)
+                return jsonify({
+                    "id": id,
+                    "error": {"code": -31050, "message": f"Order not found: {order_id}"}
+                })
+            
+            # ✅ ОБНОВЛЕНИЕ: Привязываем transaction_id к существующему платежу
+            print(f"DEBUG: Updating payment: order_id={order_id} with transaction_id={transaction_id}", flush=True)
+            
+            payment.transaction_id = transaction_id
+            payment.state = 1  # created
+            if not payment.create_time:
+                payment.create_time = datetime.utcnow()
+            
+            db.session.commit()
+            
+            print(f"DEBUG: ✅ Payment updated successfully: order_id={order_id}, transaction_id={transaction_id}", flush=True)
+            
+            return jsonify({
+                "id": id,
+                "result": {
+                    "create_time": int(payment.create_time.timestamp() * 1000),
+                    "transaction": str(payment.id),
+                    "state": 1
+                }
+            })
+            
+        except Exception as e:
+            print(f"ERROR in CreateTransaction: {e}", flush=True)
+            db.session.rollback()
+            return jsonify({
+                "id": id,
+                "error": {"code": -32400, "message": f"Internal error: {str(e)}"}
+            })
         
     elif method == 'PerformTransaction':
         transaction_id = params.get('id')
